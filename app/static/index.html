@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Online Bookstore</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Book Catalogue</h1>
+      <section>
+        <h2>Add book</h2>
+        <form id="add-book-form">
+          <label>
+            Title
+            <input id="title" name="title" required />
+          </label>
+          <label>
+            Author
+            <input id="author" name="author" required />
+          </label>
+          <label>
+            ISBN
+            <input id="isbn" name="isbn" required />
+          </label>
+          <label>
+            Description
+            <textarea id="description" name="description" required></textarea>
+          </label>
+          <label class="checkbox-row">
+            <input id="availability" name="availability" type="checkbox" checked />
+            Available
+          </label>
+          <button id="submit-button" type="submit">Add book</button>
+        </form>
+        <p id="status" aria-live="polite"></p>
+      </section>
+
+      <section>
+        <h2>Books</h2>
+        <ul id="book-list"></ul>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
