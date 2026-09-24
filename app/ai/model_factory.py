@@ -8,6 +8,13 @@ class ModelUnavailableError(Exception):
 
 
 class ChatModelFactory:
+    """Builds the configured chat model for the direct-prompt summary flow.
+
+    The provider switch is environment-driven so the same code path works for:
+    - local Ollama testing with gemma4
+    - hosted OpenAI usage with gpt-5.4-mini
+    """
+
     def create(self) -> BaseChatModel:
         provider = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
 
@@ -22,6 +29,8 @@ class ChatModelFactory:
     def _create_ollama_model(self) -> BaseChatModel:
         from langchain_ollama import ChatOllama
 
+        # Keep defaults aligned with .env.example so local development works
+        # without extra configuration when Ollama is available.
         model = os.getenv("OLLAMA_MODEL", "gemma4").strip()
         base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip()
         if not model:
@@ -32,6 +41,8 @@ class ChatModelFactory:
     def _create_openai_model(self) -> BaseChatModel:
         from langchain_openai import ChatOpenAI
 
+        # OpenAI calls require an API key; map missing credentials to the
+        # shared model-unavailable error so the API can consistently return 503.
         model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini").strip()
         api_key = os.getenv("OPENAI_API_KEY", "").strip()
         if not api_key:
