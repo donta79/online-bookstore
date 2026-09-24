@@ -18,3 +18,11 @@ class Book(BaseModel):
     isbn: str
     description: str
     availability: bool
+
+
+class SummaryRequest(BaseModel):
+    description: RequiredText
+
+
+class SummaryResponse(BaseModel):
+    summary: str
