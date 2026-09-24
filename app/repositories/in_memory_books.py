@@ -9,6 +9,19 @@ class InMemoryBookRepository:
     def list_books(self) -> list[Book]:
         return list(self._books)
 
+    def search_books(self, query: str) -> list[Book]:
+        normalized_query = query.strip().lower()
+        if not normalized_query:
+            return self.list_books()
+
+        return [
+            book
+            for book in self._books
+            if normalized_query in book.title.lower()
+            or normalized_query in book.author.lower()
+            or normalized_query in book.description.lower()
+        ]
+
     def find_by_isbn_case_insensitive(self, isbn: str) -> Book | None:
         normalized = isbn.lower()
         return next((book for book in self._books if book.isbn.lower() == normalized), None)

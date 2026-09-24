@@ -15,8 +15,11 @@ def get_catalogue_service() -> CatalogueService:
 
 
 @router.get("", response_model=list[Book])
-def list_books(service: CatalogueService = Depends(get_catalogue_service)) -> list[Book]:
-    return service.list_books()
+def list_books(
+    q: str | None = None,
+    service: CatalogueService = Depends(get_catalogue_service),
+) -> list[Book]:
+    return service.list_books(q)
 
 
 @router.post("", response_model=Book, status_code=status.HTTP_201_CREATED)
