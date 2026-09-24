@@ -16,6 +16,9 @@ class CatalogueService:
 
         return self._repository.search_books(query)
 
+    def get_book(self, book_id: int) -> Book | None:
+        return self._repository.find_by_id(book_id)
+
     def add_book(self, payload: BookCreate) -> Book:
         if self._repository.find_by_isbn_case_insensitive(payload.isbn):
             raise DuplicateIsbnError(payload.isbn)

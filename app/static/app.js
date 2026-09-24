@@ -6,6 +6,15 @@ const searchInput = document.getElementById("search-query");
 const searchButton = document.getElementById("search-button");
 const searchStatusElement = document.getElementById("search-status");
 const bookList = document.getElementById("book-list");
+const detailsDialog = document.getElementById("book-details-dialog");
+const detailsFields = {
+  id: document.getElementById("details-id"),
+  title: document.getElementById("details-title"),
+  author: document.getElementById("details-author"),
+  isbn: document.getElementById("details-isbn"),
+  description: document.getElementById("details-description"),
+  availability: document.getElementById("details-availability"),
+};
 
 function setStatus(message, stateClass) {
   statusElement.textContent = message;
@@ -26,8 +35,33 @@ function renderBooks(books) {
       <h3>${book.title}</h3>
       <p><strong>Author:</strong> ${book.author}</p>
       <p><strong>Availability:</strong> ${book.availability ? "In stock" : "Out of stock"}</p>
+      <button type="button" data-book-id="${book.id}">View details</button>
     `;
     bookList.appendChild(item);
+  }
+}
+
+function populateBookDetails(book) {
+  detailsFields.id.textContent = String(book.id);
+  detailsFields.title.textContent = book.title;
+  detailsFields.author.textContent = book.author;
+  detailsFields.isbn.textContent = book.isbn;
+  detailsFields.description.textContent = book.description;
+  detailsFields.availability.textContent = book.availability ? "In stock" : "Out of stock";
+}
+
+async function openBookDetails(bookId) {
+  try {
+    const response = await fetch(`/api/books/${bookId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch book details");
+    }
+
+    const book = await response.json();
+    populateBookDetails(book);
+    detailsDialog.showModal();
+  } catch (error) {
+    setSearchStatus("Could not load book details. Please try again.", "duplicate");
   }
 }
 
@@ -113,6 +147,15 @@ form.addEventListener("submit", async (event) => {
 searchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await refreshBooks(searchInput.value);
+});
+
+bookList.addEventListener("click", async (event) => {
+  const detailsButton = event.target.closest("[data-book-id]");
+  if (!detailsButton) {
+    return;
+  }
+
+  await openBookDetails(detailsButton.dataset.bookId);
 });
 
 refreshBooks("");

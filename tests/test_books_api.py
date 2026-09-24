@@ -169,3 +169,30 @@ def test_search_books_no_match_returns_empty_list() -> None:
         response = client.get("/api/books", params={"q": "no-such-book"})
         assert response.status_code == 200
         assert response.json() == []
+
+
+def test_get_book_existing_id_returns_book_details() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books/2")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": 2,
+            "title": "Domain-Driven Design",
+            "author": "Eric Evans",
+            "isbn": "ISBN-002",
+            "description": "A guide to complex software design.",
+            "availability": False,
+        }
+
+
+def test_get_book_missing_id_returns_404() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books/999")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Book not found"}
