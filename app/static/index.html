@@ -57,6 +57,41 @@
         <h2>Books</h2>
         <ul id="book-list" class="book-cards"></ul>
       </section>
+
+      <dialog id="book-details-dialog">
+        <article class="details-dialog-content">
+          <h2>Book details</h2>
+          <dl class="details-list">
+            <div>
+              <dt>ID</dt>
+              <dd id="details-id"></dd>
+            </div>
+            <div>
+              <dt>Title</dt>
+              <dd id="details-title"></dd>
+            </div>
+            <div>
+              <dt>Author</dt>
+              <dd id="details-author"></dd>
+            </div>
+            <div>
+              <dt>ISBN</dt>
+              <dd id="details-isbn"></dd>
+            </div>
+            <div>
+              <dt>Description</dt>
+              <dd id="details-description"></dd>
+            </div>
+            <div>
+              <dt>Availability</dt>
+              <dd id="details-availability"></dd>
+            </div>
+          </dl>
+          <form method="dialog">
+            <button id="close-details-button" type="submit">Close</button>
+          </form>
+        </article>
+      </dialog>
     </main>
     <script src="/static/app.js"></script>
   </body>

@@ -9,6 +9,9 @@ class InMemoryBookRepository:
     def list_books(self) -> list[Book]:
         return list(self._books)
 
+    def find_by_id(self, book_id: int) -> Book | None:
+        return next((book for book in self._books if book.id == book_id), None)
+
     def search_books(self, query: str) -> list[Book]:
         normalized_query = query.strip().lower()
         if not normalized_query:

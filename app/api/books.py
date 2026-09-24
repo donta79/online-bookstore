@@ -22,6 +22,18 @@ def list_books(
     return service.list_books(q)
 
 
+@router.get("/{book_id}", response_model=Book)
+def get_book(
+    book_id: int,
+    service: CatalogueService = Depends(get_catalogue_service),
+) -> Book:
+    book = service.get_book(book_id)
+    if book is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    return book
+
+
 @router.post("", response_model=Book, status_code=status.HTTP_201_CREATED)
 def create_book(
     payload: BookCreate,
