@@ -7,6 +7,9 @@ const searchButton = document.getElementById("search-button");
 const searchStatusElement = document.getElementById("search-status");
 const bookList = document.getElementById("book-list");
 const detailsDialog = document.getElementById("book-details-dialog");
+const summarizeButton = document.getElementById("summarize-button");
+const summaryStatusElement = document.getElementById("summary-status");
+const summaryTextElement = document.getElementById("summary-text");
 const detailsFields = {
   id: document.getElementById("details-id"),
   title: document.getElementById("details-title"),
@@ -15,6 +18,7 @@ const detailsFields = {
   description: document.getElementById("details-description"),
   availability: document.getElementById("details-availability"),
 };
+let selectedDescription = "";
 
 function setStatus(message, stateClass) {
   statusElement.textContent = message;
@@ -48,6 +52,18 @@ function populateBookDetails(book) {
   detailsFields.isbn.textContent = book.isbn;
   detailsFields.description.textContent = book.description;
   detailsFields.availability.textContent = book.availability ? "In stock" : "Out of stock";
+  selectedDescription = book.description;
+  resetSummary();
+}
+
+function setSummaryStatus(message, stateClass) {
+  summaryStatusElement.textContent = message;
+  summaryStatusElement.className = stateClass;
+}
+
+function resetSummary() {
+  summaryTextElement.textContent = "";
+  setSummaryStatus("", "");
 }
 
 async function openBookDetails(bookId) {
@@ -62,6 +78,43 @@ async function openBookDetails(bookId) {
     detailsDialog.showModal();
   } catch (error) {
     setSearchStatus("Could not load book details. Please try again.", "duplicate");
+  }
+}
+
+async function summarizeSelectedBook() {
+  if (!selectedDescription) {
+    setSummaryStatus("No description is available to summarize.", "validation");
+    return;
+  }
+
+  setSummaryStatus("Summarizing...", "working");
+  summaryTextElement.textContent = "";
+  summarizeButton.disabled = true;
+
+  try {
+    const response = await fetch("/api/ai/summaries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: selectedDescription }),
+    });
+
+    if (response.ok) {
+      const body = await response.json();
+      summaryTextElement.textContent = body.summary;
+      setSummaryStatus("Summary ready.", "success");
+      return;
+    }
+
+    if (response.status === 503) {
+      setSummaryStatus("Summary is unavailable right now. Please try again later.", "duplicate");
+      return;
+    }
+
+    setSummaryStatus("Could not summarize this book. Please try again.", "duplicate");
+  } catch (error) {
+    setSummaryStatus("Could not summarize this book. Please try again.", "duplicate");
+  } finally {
+    summarizeButton.disabled = false;
   }
 }
 
@@ -156,6 +209,10 @@ bookList.addEventListener("click", async (event) => {
   }
 
   await openBookDetails(detailsButton.dataset.bookId);
+});
+
+summarizeButton.addEventListener("click", async () => {
+  await summarizeSelectedBook();
 });
 
 refreshBooks("");
