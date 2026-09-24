@@ -13,6 +13,35 @@ def build_client() -> TestClient:
     return TestClient(app)
 
 
+def seed_books(client: TestClient) -> None:
+    books = [
+        {
+            "title": "Clean Code",
+            "author": "Robert C. Martin",
+            "isbn": "ISBN-001",
+            "description": "Software craftsmanship guide.",
+            "availability": True,
+        },
+        {
+            "title": "Domain-Driven Design",
+            "author": "Eric Evans",
+            "isbn": "ISBN-002",
+            "description": "A guide to complex software design.",
+            "availability": False,
+        },
+        {
+            "title": "Pragmatic Programmer",
+            "author": "Andy Hunt",
+            "isbn": "ISBN-003",
+            "description": "Classic guidance for programmers.",
+            "availability": True,
+        },
+    ]
+    for book in books:
+        response = client.post("/api/books", json=book)
+        assert response.status_code == 201
+
+
 def test_create_book_success_returns_201_and_assigned_id() -> None:
     with build_client() as client:
         response = client.post(
@@ -77,3 +106,66 @@ def test_create_book_duplicate_isbn_case_insensitive_returns_409() -> None:
             },
         )
         assert second.status_code == 409
+
+
+def test_search_books_by_title_query() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books", params={"q": "clean"})
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["title"] == "Clean Code"
+
+
+def test_search_books_by_author_query() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books", params={"q": "evans"})
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["author"] == "Eric Evans"
+
+
+def test_search_books_by_description_query() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books", params={"q": "programmers"})
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["title"] == "Pragmatic Programmer"
+
+
+def test_search_books_is_case_insensitive() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books", params={"q": "RoBeRt C. mArTiN"})
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["title"] == "Clean Code"
+
+
+def test_search_books_blank_query_returns_all_books() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books", params={"q": "   "})
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 3
+
+
+def test_search_books_no_match_returns_empty_list() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.get("/api/books", params={"q": "no-such-book"})
+        assert response.status_code == 200
+        assert response.json() == []

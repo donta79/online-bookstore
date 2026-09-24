@@ -10,8 +10,11 @@ class CatalogueService:
     def __init__(self, repository: InMemoryBookRepository) -> None:
         self._repository = repository
 
-    def list_books(self) -> list[Book]:
-        return self._repository.list_books()
+    def list_books(self, query: str | None = None) -> list[Book]:
+        if query is None:
+            return self._repository.list_books()
+
+        return self._repository.search_books(query)
 
     def add_book(self, payload: BookCreate) -> Book:
         if self._repository.find_by_isbn_case_insensitive(payload.isbn):
