@@ -1,6 +1,3 @@
-import re
-
-from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from app.ai.model_factory import ChatModelFactory, ModelUnavailableError
@@ -85,15 +82,24 @@ def _derive_search_query(question: str) -> str:
     if not normalized:
         return normalized
 
-    about_match = re.search(r"\babout\s+(.+?)(?:\s+(?:and|with)\b|$)", normalized, flags=re.IGNORECASE)
-    if about_match:
-        query = about_match.group(1).strip(" .!?")
+    lowercase = normalized.lower()
+    about_index = lowercase.find("about ")
+    if about_index >= 0:
+        start = about_index + len("about ")
+        stop = len(normalized)
+        for marker in (" and ", " with "):
+            marker_index = lowercase.find(marker, start)
+            if marker_index >= 0:
+                stop = min(stop, marker_index)
+        query = normalized[start:stop].strip(" .!?")
         if query:
             return query
 
-    quoted = re.findall(r'"([^"]+)"', normalized)
-    if quoted:
-        return quoted[0].strip()
+    first_quote = normalized.find('"')
+    if first_quote >= 0:
+        second_quote = normalized.find('"', first_quote + 1)
+        if second_quote > first_quote + 1:
+            return normalized[first_quote + 1 : second_quote].strip()
 
     return normalized
 
