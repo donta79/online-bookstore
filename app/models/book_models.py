@@ -26,3 +26,12 @@ class SummaryRequest(BaseModel):
 
 class SummaryResponse(BaseModel):
     summary: str
+
+
+class AgentCatalogRequest(BaseModel):
+    question: RequiredText
+
+
+class AgentCatalogResponse(BaseModel):
+    answer: str
+    results: list[Book] = Field(default_factory=list)

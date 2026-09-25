@@ -5,6 +5,13 @@ const searchForm = document.getElementById("search-form");
 const searchInput = document.getElementById("search-query");
 const searchButton = document.getElementById("search-button");
 const searchStatusElement = document.getElementById("search-status");
+const agentForm = document.getElementById("agent-form");
+const agentQuestionInput = document.getElementById("agent-question");
+const askAgentButton = document.getElementById("ask-agent-button");
+const agentProgress = document.getElementById("agent-progress");
+const agentStatusElement = document.getElementById("agent-status");
+const agentAnswerElement = document.getElementById("agent-answer");
+const agentResultsElement = document.getElementById("agent-results");
 const bookList = document.getElementById("book-list");
 const detailsDialog = document.getElementById("book-details-dialog");
 const summarizeButton = document.getElementById("summarize-button");
@@ -28,6 +35,43 @@ function setStatus(message, stateClass) {
 function setSearchStatus(message, stateClass) {
   searchStatusElement.textContent = message;
   searchStatusElement.className = stateClass;
+}
+
+function setAgentStatus(message, stateClass) {
+  agentStatusElement.textContent = message;
+  agentStatusElement.className = stateClass;
+}
+
+function setAgentProgress(visible) {
+  agentProgress.classList.toggle("visible", visible);
+}
+
+function renderAgentResults(results) {
+  agentResultsElement.innerHTML = "";
+  for (const book of results) {
+    const item = document.createElement("li");
+    item.className = "book-card";
+
+    const title = document.createElement("h3");
+    title.textContent = book.title;
+
+    const author = document.createElement("p");
+    const authorLabel = document.createElement("strong");
+    authorLabel.textContent = "Author:";
+    author.appendChild(authorLabel);
+    author.append(` ${book.author}`);
+
+    const availability = document.createElement("p");
+    const availabilityLabel = document.createElement("strong");
+    availabilityLabel.textContent = "Availability:";
+    availability.appendChild(availabilityLabel);
+    availability.append(` ${book.availability ? "In stock" : "Out of stock"}`);
+
+    item.appendChild(title);
+    item.appendChild(author);
+    item.appendChild(availability);
+    agentResultsElement.appendChild(item);
+  }
 }
 
 function renderBooks(books) {
@@ -150,6 +194,47 @@ async function refreshBooks(query = "") {
   }
 }
 
+async function askCatalogueAgent(question) {
+  setAgentStatus("Agent is working...", "working");
+  setAgentProgress(true);
+  agentAnswerElement.textContent = "";
+  askAgentButton.disabled = true;
+
+  try {
+    const response = await fetch("/api/agent/catalog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+
+    if (response.ok) {
+      const body = await response.json();
+      setAgentStatus("Agent answer ready.", "success");
+      agentAnswerElement.textContent = body.answer;
+      renderAgentResults(body.results);
+      if (body.results.length === 0) {
+        setAgentStatus("No matching books found by the agent.", "no-results");
+      }
+      return;
+    }
+
+    if (response.status === 503) {
+      setAgentStatus("Catalogue agent is unavailable right now. Please try again later.", "duplicate");
+      renderAgentResults([]);
+      return;
+    }
+
+    setAgentStatus("Could not get an agent answer. Please try again.", "duplicate");
+    renderAgentResults([]);
+  } catch (error) {
+    setAgentStatus("Could not get an agent answer. Please try again.", "duplicate");
+    renderAgentResults([]);
+  } finally {
+    askAgentButton.disabled = false;
+    setAgentProgress(false);
+  }
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -200,6 +285,11 @@ form.addEventListener("submit", async (event) => {
 searchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await refreshBooks(searchInput.value);
+});
+
+agentForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await askCatalogueAgent(agentQuestionInput.value);
 });
 
 bookList.addEventListener("click", async (event) => {
