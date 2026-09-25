@@ -1,4 +1,8 @@
-from langchain_core.messages import HumanMessage
+from typing import Any
+
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.tools import BaseTool, tool
 
 from app.ai.model_factory import ChatModelFactory, ModelUnavailableError
 from app.models.book_models import Book
@@ -14,108 +18,97 @@ class CatalogueAgent:
         self._book_service = book_service
 
     def answer(self, question: str) -> tuple[str, list[Book]]:
-        # Tool 1: search_books(query). The agent always searches first.
-        query = _derive_search_query(question)
-        try:
-            matches = self._book_service.search_books(query)
-        except Exception as exc:  # pragma: no cover - API behavior test covers mapping
-            raise CatalogueAgentError("Tool call failed: search_books") from exc
+        observed_books: dict[int, Book] = {}
+        search_result_ids: list[int] = []
+        checked_ids: set[int] = set()
+        last_query = question.strip()
 
-        if not matches:
-            return f'No matching books were found for "{query}".', []
+        # Tool 1: search_books(query). The agent must call this first.
+        @tool
+        def search_books(query: str) -> list[dict[str, Any]]:
+            """Search catalogue books by title, author, or description."""
 
-        collected_results: list[Book] = []
-        observations: list[str] = []
-        # Tool 2: check_availability(book_id). Check every result found by search.
-        for book in matches:
+            nonlocal last_query
+            last_query = query
             try:
-                available = self._book_service.check_availability(book.id)
-            except Exception as exc:  # pragma: no cover - API behavior test covers mapping
+                books = self._book_service.search_books(query)
+            except Exception as exc:
+                raise CatalogueAgentError("Tool call failed: search_books") from exc
+
+            search_result_ids.clear()
+            for book in books:
+                search_result_ids.append(book.id)
+                observed_books[book.id] = book
+
+            return [book.model_dump() for book in books]
+
+        # Tool 2: check_availability(book_id). The agent should call this for every found result.
+        @tool
+        def check_availability(book_id: int) -> bool:
+            """Check whether a book is currently available by id."""
+
+            try:
+                available = self._book_service.check_availability(book_id)
+            except Exception as exc:
                 raise CatalogueAgentError("Tool call failed: check_availability") from exc
 
-            observed_book = book.model_copy(update={"availability": available})
-            # Result collection: return the exact structured Book observations.
-            collected_results.append(observed_book)
-            status = "available" if available else "unavailable"
-            observations.append(f"- id={book.id}, title={book.title}, availability={status}")
+            checked_ids.add(book_id)
+            if book_id in observed_books:
+                observed_books[book_id] = observed_books[book_id].model_copy(
+                    update={"availability": available}
+                )
+            return available
 
-        answer = self._build_grounded_answer(question, query, observations)
-        return answer, collected_results
+        tools: list[BaseTool] = [search_books, check_availability]
+        answer = self._run_agent(question, tools)
 
-    def _build_grounded_answer(self, question: str, query: str, observations: list[str]) -> str:
+        # Safety loop: if the model skips an availability call, complete it through the tool
+        # so results always come from tool observations for every relevant match.
+        for book_id in search_result_ids:
+            if book_id not in checked_ids:
+                check_availability.invoke({"book_id": book_id})
+
+        if not search_result_ids:
+            return f'No matching books were found for "{last_query}".', []
+
+        # Result collection: return the exact structured Book values collected by tools.
+        results = [observed_books[book_id] for book_id in search_result_ids]
+        if not answer:
+            answer = "I checked the catalogue and listed the matching books with their availability."
+        return answer, results
+
+    def _run_agent(self, question: str, tools: list[BaseTool]) -> str:
         try:
             model = ChatModelFactory().create()
-        except Exception as exc:  # pragma: no cover - mapped by API
+        except Exception as exc:  # pragma: no cover - mapped in API tests
             if isinstance(exc, ModelUnavailableError):
                 raise
             raise CatalogueAgentError("Could not initialize configured model") from exc
 
-        prompt = build_catalog_agent_prompt(question, query, observations)
+        # Grounding instructions keep the final answer tied strictly to tool outputs.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a bookstore catalogue assistant.\n"
+                    "Always call search_books first.\n"
+                    "Then call check_availability for every returned book id.\n"
+                    "Answer only from tool observations and do not invent facts.",
+                ),
+                ("human", "{question}"),
+                MessagesPlaceholder("agent_scratchpad"),
+            ]
+        )
+
+        # Agent loop: LangChain manages thought/tool/action iterations until final output.
+        agent = create_tool_calling_agent(model, tools, prompt)
+        executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
         try:
-            response = model.invoke([HumanMessage(content=prompt)])
-        except Exception as exc:  # pragma: no cover - mapped by API
+            response = executor.invoke({"question": question})
+        except Exception as exc:  # pragma: no cover - mapped in API tests
             raise CatalogueAgentError("Model invocation failed") from exc
 
-        content = _read_message_content(response.content)
-        return content or "I checked the catalogue but could not generate a detailed answer."
-
-
-def build_catalog_agent_prompt(question: str, query: str, observations: list[str]) -> str:
-    # Grounding rule: the model can only use the tool observations listed below.
-    observation_block = "\n".join(observations)
-    return (
-        "You are a bookstore catalogue assistant.\n"
-        "You must answer only using the tool observations provided.\n"
-        "Do not invent books, IDs, or availability.\n"
-        "If any information is missing, say so clearly.\n"
-        "Respond in concise customer-friendly prose.\n\n"
-        f"Original customer question: {question}\n"
-        f"Search query used: {query}\n"
-        "Tool observations:\n"
-        f"{observation_block}\n\n"
-        "Final answer:"
-    )
-
-
-def _derive_search_query(question: str) -> str:
-    normalized = question.strip()
-    if not normalized:
-        return normalized
-
-    lowercase = normalized.lower()
-    about_index = lowercase.find("about ")
-    if about_index >= 0:
-        start = about_index + len("about ")
-        stop = len(normalized)
-        for marker in (" and ", " with "):
-            marker_index = lowercase.find(marker, start)
-            if marker_index >= 0:
-                stop = min(stop, marker_index)
-        query = normalized[start:stop].strip(" .!?")
-        if query:
-            return query
-
-    first_quote = normalized.find('"')
-    if first_quote >= 0:
-        second_quote = normalized.find('"', first_quote + 1)
-        if second_quote > first_quote + 1:
-            return normalized[first_quote + 1 : second_quote].strip()
-
-    return normalized
-
-
-def _read_message_content(content: str | list[dict] | list[str]) -> str:
-    if isinstance(content, str):
-        return content.strip()
-
-    parts: list[str] = []
-    for item in content:
-        if isinstance(item, str):
-            parts.append(item)
-            continue
-        if isinstance(item, dict):
-            text = item.get("text")
-            if isinstance(text, str):
-                parts.append(text)
-
-    return " ".join(parts).strip()
+        output = response.get("output")
+        if isinstance(output, str):
+            return output.strip()
+        return ""
