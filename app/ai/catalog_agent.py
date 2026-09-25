@@ -1,7 +1,7 @@
 from typing import Any
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import create_agent
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.tools import BaseTool, tool
 
 from app.ai.model_factory import ChatModelFactory, ModelUnavailableError
@@ -86,29 +86,44 @@ class CatalogueAgent:
             raise CatalogueAgentError("Could not initialize configured model") from exc
 
         # Grounding instructions keep the final answer tied strictly to tool outputs.
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are a bookstore catalogue assistant.\n"
-                    "Always call search_books first.\n"
-                    "Then call check_availability for every returned book id.\n"
-                    "Answer only from tool observations and do not invent facts.",
-                ),
-                ("human", "{question}"),
-                MessagesPlaceholder("agent_scratchpad"),
-            ]
+        agent = create_agent(
+            model=model,
+            tools=tools,
+            system_prompt=(
+                "You are a bookstore catalogue assistant.\n"
+                "Always call search_books first.\n"
+                "Then call check_availability for every returned book id.\n"
+                "Answer only from tool observations and do not invent facts."
+            ),
         )
 
-        # Agent loop: LangChain manages thought/tool/action iterations until final output.
-        agent = create_tool_calling_agent(model, tools, prompt)
-        executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
         try:
-            response = executor.invoke({"question": question})
+            # Agent loop: LangChain manages tool iterations until final answer output.
+            response = agent.invoke({"messages": [{"role": "user", "content": question}]})
         except Exception as exc:  # pragma: no cover - mapped in API tests
             raise CatalogueAgentError("Model invocation failed") from exc
 
-        output = response.get("output")
-        if isinstance(output, str):
-            return output.strip()
+        messages = response.get("messages")
+        if isinstance(messages, list):
+            for message in reversed(messages):
+                if isinstance(message, AIMessage):
+                    return _read_message_content(message)
         return ""
+
+
+def _read_message_content(message: BaseMessage) -> str:
+    content = message.content
+    if isinstance(content, str):
+        return content.strip()
+
+    parts: list[str] = []
+    if isinstance(content, list):
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+
+    return " ".join(parts).strip()
