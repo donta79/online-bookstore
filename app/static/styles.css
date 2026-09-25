@@ -39,6 +39,12 @@ button {
   min-height: 1.5rem;
 }
 
+#agent-status,
+#agent-answer {
+  min-height: 1.5rem;
+  margin: 0;
+}
+
 .working {
   color: #1f4a8a;
 }

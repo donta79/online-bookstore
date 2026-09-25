@@ -54,6 +54,28 @@
       </section>
 
       <section>
+        <h2>Catalogue agent</h2>
+        <form id="agent-form">
+          <label>
+            Question
+            <input
+              id="agent-question"
+              name="agent-question"
+              value="Find books about software architecture and check whether they are available"
+              required
+            />
+          </label>
+          <button id="ask-agent-button" type="submit">Ask agent</button>
+        </form>
+        <p id="agent-status" aria-live="polite"></p>
+        <p id="agent-answer"></p>
+        <section>
+          <h3>Search results used by the agent</h3>
+          <ul id="agent-results" class="book-cards"></ul>
+        </section>
+      </section>
+
+      <section>
         <h2>Books</h2>
         <ul id="book-list" class="book-cards"></ul>
       </section>
