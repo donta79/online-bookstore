@@ -8,6 +8,7 @@ const searchStatusElement = document.getElementById("search-status");
 const agentForm = document.getElementById("agent-form");
 const agentQuestionInput = document.getElementById("agent-question");
 const askAgentButton = document.getElementById("ask-agent-button");
+const agentProgress = document.getElementById("agent-progress");
 const agentStatusElement = document.getElementById("agent-status");
 const agentAnswerElement = document.getElementById("agent-answer");
 const agentResultsElement = document.getElementById("agent-results");
@@ -39,6 +40,10 @@ function setSearchStatus(message, stateClass) {
 function setAgentStatus(message, stateClass) {
   agentStatusElement.textContent = message;
   agentStatusElement.className = stateClass;
+}
+
+function setAgentProgress(visible) {
+  agentProgress.classList.toggle("visible", visible);
 }
 
 function renderAgentResults(results) {
@@ -167,45 +172,6 @@ async function refreshBooks(query = "") {
       params.set("q", query);
     }
 
-    async function askCatalogueAgent(question) {
-      setAgentStatus("Agent is working...", "working");
-      agentAnswerElement.textContent = "";
-      askAgentButton.disabled = true;
-
-      try {
-        const response = await fetch("/api/agent/catalog", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question }),
-        });
-
-        if (response.ok) {
-          const body = await response.json();
-          setAgentStatus("Agent answer ready.", "success");
-          agentAnswerElement.textContent = body.answer;
-          renderAgentResults(body.results);
-          if (body.results.length === 0) {
-            setAgentStatus("No matching books found by the agent.", "no-results");
-          }
-          return;
-        }
-
-        if (response.status === 503) {
-          setAgentStatus("Catalogue agent is unavailable right now. Please try again later.", "duplicate");
-          renderAgentResults([]);
-          return;
-        }
-
-        setAgentStatus("Could not get an agent answer. Please try again.", "duplicate");
-        renderAgentResults([]);
-      } catch (error) {
-        setAgentStatus("Could not get an agent answer. Please try again.", "duplicate");
-        renderAgentResults([]);
-      } finally {
-        askAgentButton.disabled = false;
-      }
-    }
-
     const url = params.toString() ? `/api/books?${params.toString()}` : "/api/books";
     const response = await fetch(url);
     if (!response.ok) {
@@ -225,6 +191,47 @@ async function refreshBooks(query = "") {
     setSearchStatus("Could not load books. Please try again.", "duplicate");
   } finally {
     searchButton.disabled = false;
+  }
+}
+
+async function askCatalogueAgent(question) {
+  setAgentStatus("Agent is working...", "working");
+  setAgentProgress(true);
+  agentAnswerElement.textContent = "";
+  askAgentButton.disabled = true;
+
+  try {
+    const response = await fetch("/api/agent/catalog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+
+    if (response.ok) {
+      const body = await response.json();
+      setAgentStatus("Agent answer ready.", "success");
+      agentAnswerElement.textContent = body.answer;
+      renderAgentResults(body.results);
+      if (body.results.length === 0) {
+        setAgentStatus("No matching books found by the agent.", "no-results");
+      }
+      return;
+    }
+
+    if (response.status === 503) {
+      setAgentStatus("Catalogue agent is unavailable right now. Please try again later.", "duplicate");
+      renderAgentResults([]);
+      return;
+    }
+
+    setAgentStatus("Could not get an agent answer. Please try again.", "duplicate");
+    renderAgentResults([]);
+  } catch (error) {
+    setAgentStatus("Could not get an agent answer. Please try again.", "duplicate");
+    renderAgentResults([]);
+  } finally {
+    askAgentButton.disabled = false;
+    setAgentProgress(false);
   }
 }
 
