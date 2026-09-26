@@ -37,6 +37,27 @@ class InMemoryBookRepository:
 
         return False
 
+    def update_book(
+        self,
+        book_id: int,
+        *,
+        title: str,
+        author: str,
+        isbn: str,
+        description: str,
+        availability: bool,
+    ) -> Book | None:
+        book = self.find_by_id(book_id)
+        if book is None:
+            return None
+
+        book.title = title
+        book.author = author
+        book.isbn = isbn
+        book.description = description
+        book.availability = availability
+        return book
+
     def create_book(
         self,
         *,

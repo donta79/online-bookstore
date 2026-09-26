@@ -123,6 +123,40 @@
           </form>
         </article>
       </dialog>
+
+      <dialog id="edit-book-dialog" aria-describedby="edit-status">
+        <article class="details-dialog-content">
+          <h2>Edit book</h2>
+          <form id="edit-book-form">
+            <input id="edit-book-id" name="edit-book-id" type="hidden" />
+            <label>
+              Title
+              <input id="edit-title" name="edit-title" required />
+            </label>
+            <label>
+              Author
+              <input id="edit-author" name="edit-author" required />
+            </label>
+            <label>
+              ISBN
+              <input id="edit-isbn" name="edit-isbn" required />
+            </label>
+            <label>
+              Description
+              <textarea id="edit-description" name="edit-description" required></textarea>
+            </label>
+            <label class="checkbox-row">
+              <input id="edit-availability" name="edit-availability" type="checkbox" />
+              Available
+            </label>
+            <button id="edit-save-button" type="submit">Save changes</button>
+          </form>
+          <p id="edit-status" aria-live="polite"></p>
+          <form method="dialog">
+            <button id="edit-cancel-button" type="submit">Cancel</button>
+          </form>
+        </article>
+      </dialog>
     </main>
     <script src="/static/app.js"></script>
   </body>

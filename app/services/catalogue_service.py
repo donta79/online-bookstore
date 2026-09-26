@@ -33,3 +33,21 @@ class CatalogueService:
             description=payload.description,
             availability=payload.availability,
         )
+
+    def update_book(self, book_id: int, payload: BookCreate) -> Book | None:
+        book = self._repository.find_by_id(book_id)
+        if book is None:
+            return None
+
+        duplicate = self._repository.find_by_isbn_case_insensitive(payload.isbn)
+        if duplicate is not None and duplicate.id != book_id:
+            raise DuplicateIsbnError(payload.isbn)
+
+        return self._repository.update_book(
+            book_id,
+            title=payload.title,
+            author=payload.author,
+            isbn=payload.isbn,
+            description=payload.description,
+            availability=payload.availability,
+        )
