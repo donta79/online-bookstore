@@ -1,12 +1,17 @@
+import os
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.models.book_models import Book, BookCreate
-from app.repositories.in_memory_books import InMemoryBookRepository
+from app.repositories.sqlite_books import SQLiteBookRepository
 from app.services.catalogue_service import CatalogueService, DuplicateIsbnError
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
-_repository = InMemoryBookRepository()
+_repository = SQLiteBookRepository(
+    os.environ.get("BOOKSTORE_DATABASE_PATH", Path("data") / "bookstore.db")
+)
 _catalogue_service = CatalogueService(_repository)
 
 

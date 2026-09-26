@@ -2,12 +2,12 @@ from fastapi.testclient import TestClient
 
 from app.api.books import get_catalogue_service
 from app.main import app
-from app.repositories.in_memory_books import InMemoryBookRepository
+from app.repositories.sqlite_books import SQLiteBookRepository
 from app.services.catalogue_service import CatalogueService
 
 
 def build_client() -> TestClient:
-    repository = InMemoryBookRepository()
+    repository = SQLiteBookRepository(":memory:")
     service = CatalogueService(repository)
     app.dependency_overrides[get_catalogue_service] = lambda: service
     return TestClient(app)
@@ -63,6 +63,39 @@ def test_create_book_success_returns_201_and_assigned_id() -> None:
         books_response = client.get("/api/books")
         assert books_response.status_code == 200
         assert len(books_response.json()) == 1
+
+
+def test_books_persist_changes_across_repository_recreation(tmp_path) -> None:
+    database_path = tmp_path / "bookstore.db"
+    first_repository = SQLiteBookRepository(database_path)
+    created = first_repository.create_book(
+        title="Persistent Book",
+        author="Ada Lovelace",
+        isbn="ISBN-PERSIST",
+        description="Stored in SQLite.",
+        availability=True,
+    )
+
+    second_repository = SQLiteBookRepository(database_path)
+
+    assert second_repository.find_by_id(created.id) == created
+    updated = second_repository.update_book(
+        created.id,
+        title="Updated Persistent Book",
+        author="Ada Lovelace",
+        isbn="ISBN-PERSIST",
+        description="Updated in SQLite.",
+        availability=False,
+    )
+
+    third_repository = SQLiteBookRepository(database_path)
+
+    assert third_repository.find_by_id(created.id) == updated
+    assert third_repository.delete_book(created.id) is True
+
+    fourth_repository = SQLiteBookRepository(database_path)
+
+    assert fourth_repository.find_by_id(created.id) is None
 
 
 def test_create_book_missing_required_field_returns_422() -> None:
