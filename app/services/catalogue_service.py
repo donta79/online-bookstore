@@ -1,5 +1,5 @@
 from app.models.book_models import Book, BookCreate
-from app.repositories.in_memory_books import InMemoryBookRepository
+from app.repositories.book_repository import BookRepository
 
 
 class DuplicateIsbnError(Exception):
@@ -7,7 +7,7 @@ class DuplicateIsbnError(Exception):
 
 
 class CatalogueService:
-    def __init__(self, repository: InMemoryBookRepository) -> None:
+    def __init__(self, repository: BookRepository) -> None:
         self._repository = repository
 
     def list_books(self, query: str | None = None) -> list[Book]:
