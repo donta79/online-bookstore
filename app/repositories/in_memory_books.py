@@ -29,6 +29,14 @@ class InMemoryBookRepository:
         normalized = isbn.lower()
         return next((book for book in self._books if book.isbn.lower() == normalized), None)
 
+    def delete_book(self, book_id: int) -> bool:
+        for index, book in enumerate(self._books):
+            if book.id == book_id:
+                del self._books[index]
+                return True
+
+        return False
+
     def create_book(
         self,
         *,

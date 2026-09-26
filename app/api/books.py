@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.models.book_models import Book, BookCreate
 from app.repositories.in_memory_books import InMemoryBookRepository
@@ -32,6 +32,17 @@ def get_book(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 
     return book
+
+
+@router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+def delete_book(
+    book_id: int,
+    service: CatalogueService = Depends(get_catalogue_service),
+) -> Response:
+    if not service.delete_book(book_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("", response_model=Book, status_code=status.HTTP_201_CREATED)

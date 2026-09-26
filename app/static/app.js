@@ -79,12 +79,43 @@ function renderBooks(books) {
   for (const book of books) {
     const item = document.createElement("li");
     item.className = "book-card";
-    item.innerHTML = `
-      <h3>${book.title}</h3>
-      <p><strong>Author:</strong> ${book.author}</p>
-      <p><strong>Availability:</strong> ${book.availability ? "In stock" : "Out of stock"}</p>
-      <button type="button" data-book-id="${book.id}">View details</button>
-    `;
+
+    const title = document.createElement("h3");
+    title.textContent = book.title;
+
+    const author = document.createElement("p");
+    const authorLabel = document.createElement("strong");
+    authorLabel.textContent = "Author:";
+    author.appendChild(authorLabel);
+    author.append(` ${book.author}`);
+
+    const availability = document.createElement("p");
+    const availabilityLabel = document.createElement("strong");
+    availabilityLabel.textContent = "Availability:";
+    availability.appendChild(availabilityLabel);
+    availability.append(` ${book.availability ? "In stock" : "Out of stock"}`);
+
+    const actions = document.createElement("div");
+    actions.className = "book-card-actions";
+
+    const detailsButton = document.createElement("button");
+    detailsButton.type = "button";
+    detailsButton.dataset.viewBookId = String(book.id);
+    detailsButton.textContent = "View details";
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-button";
+    deleteButton.dataset.deleteBookId = String(book.id);
+    deleteButton.dataset.bookTitle = book.title;
+    deleteButton.textContent = "Delete book";
+
+    actions.appendChild(detailsButton);
+    actions.appendChild(deleteButton);
+    item.appendChild(title);
+    item.appendChild(author);
+    item.appendChild(availability);
+    item.appendChild(actions);
     bookList.appendChild(item);
   }
 }
@@ -162,7 +193,14 @@ async function summarizeSelectedBook() {
   }
 }
 
-async function refreshBooks(query = "") {
+function toggleBookListButtons(disabled) {
+  for (const button of bookList.querySelectorAll("button")) {
+    button.disabled = disabled;
+  }
+}
+
+async function refreshBooks(query = "", options = {}) {
+  const { successMessage = "" } = options;
   setSearchStatus("Loading books...", "working");
   searchButton.disabled = true;
 
@@ -182,15 +220,56 @@ async function refreshBooks(query = "") {
     renderBooks(books);
 
     if (books.length === 0) {
+      if (!query.trim()) {
+        setSearchStatus("Catalogue is empty.", "no-results");
+        return;
+      }
+
       setSearchStatus("No books found for that search.", "no-results");
       return;
     }
 
-    setSearchStatus(`Showing ${books.length} book(s).`, "success");
+    setSearchStatus(successMessage || `Showing ${books.length} book(s).`, "success");
   } catch (error) {
     setSearchStatus("Could not load books. Please try again.", "duplicate");
   } finally {
     searchButton.disabled = false;
+  }
+}
+
+async function deleteBook(bookId, title) {
+  const confirmed = window.confirm(`Delete "${title}" from the catalogue?`);
+  if (!confirmed) {
+    return;
+  }
+
+  setSearchStatus("Deleting book...", "working");
+  toggleBookListButtons(true);
+
+  try {
+    const response = await fetch(`/api/books/${bookId}`, {
+      method: "DELETE",
+    });
+
+    if (response.status === 204) {
+      if (detailsDialog.open && detailsFields.id.textContent === String(bookId)) {
+        detailsDialog.close();
+      }
+
+      await refreshBooks(searchInput.value, { successMessage: "Book deleted successfully." });
+      return;
+    }
+
+    if (response.status === 404) {
+      setSearchStatus("Could not delete book because it was not found.", "duplicate");
+      return;
+    }
+
+    setSearchStatus("Could not delete book. Please try again.", "duplicate");
+  } catch (error) {
+    setSearchStatus("Could not delete book. Please try again.", "duplicate");
+  } finally {
+    toggleBookListButtons(false);
   }
 }
 
@@ -293,12 +372,18 @@ agentForm.addEventListener("submit", async (event) => {
 });
 
 bookList.addEventListener("click", async (event) => {
-  const detailsButton = event.target.closest("[data-book-id]");
+  const deleteButton = event.target.closest("[data-delete-book-id]");
+  if (deleteButton) {
+    await deleteBook(deleteButton.dataset.deleteBookId, deleteButton.dataset.bookTitle);
+    return;
+  }
+
+  const detailsButton = event.target.closest("[data-view-book-id]");
   if (!detailsButton) {
     return;
   }
 
-  await openBookDetails(detailsButton.dataset.bookId);
+  await openBookDetails(detailsButton.dataset.viewBookId);
 });
 
 summarizeButton.addEventListener("click", async () => {

@@ -124,6 +124,18 @@ button {
   justify-self: start;
 }
 
+.book-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.delete-button {
+  color: #8a1f1f;
+  border: 1px solid #c97c7c;
+  background: #fff5f5;
+}
+
 #book-details-dialog {
   border: none;
   border-radius: 10px;
