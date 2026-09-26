@@ -196,3 +196,52 @@ def test_get_book_missing_id_returns_404() -> None:
 
         assert response.status_code == 404
         assert response.json() == {"detail": "Book not found"}
+
+
+def test_delete_book_existing_id_returns_204_without_response_body() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.delete("/api/books/2")
+
+        assert response.status_code == 204
+        assert response.content == b""
+
+
+def test_delete_book_missing_id_returns_404() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.delete("/api/books/999")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Book not found"}
+
+
+def test_delete_book_removes_only_selected_book() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        delete_response = client.delete("/api/books/2")
+        assert delete_response.status_code == 204
+
+        books_response = client.get("/api/books")
+        assert books_response.status_code == 200
+        assert books_response.json() == [
+            {
+                "id": 1,
+                "title": "Clean Code",
+                "author": "Robert C. Martin",
+                "isbn": "ISBN-001",
+                "description": "Software craftsmanship guide.",
+                "availability": True,
+            },
+            {
+                "id": 3,
+                "title": "Pragmatic Programmer",
+                "author": "Andy Hunt",
+                "isbn": "ISBN-003",
+                "description": "Classic guidance for programmers.",
+                "availability": True,
+            },
+        ]
