@@ -106,6 +106,7 @@ def test_create_book_duplicate_isbn_case_insensitive_returns_409() -> None:
             },
         )
         assert second.status_code == 409
+        assert second.json() == {"detail": "ISBN already exists"}
 
 
 def test_search_books_by_title_query() -> None:
@@ -234,6 +235,134 @@ def test_delete_book_removes_only_selected_book() -> None:
                 "author": "Robert C. Martin",
                 "isbn": "ISBN-001",
                 "description": "Software craftsmanship guide.",
+                "availability": True,
+            },
+            {
+                "id": 3,
+                "title": "Pragmatic Programmer",
+                "author": "Andy Hunt",
+                "isbn": "ISBN-003",
+                "description": "Classic guidance for programmers.",
+                "availability": True,
+            },
+        ]
+
+
+def test_update_book_existing_id_returns_200_and_updated_book() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.put(
+            "/api/books/2",
+            json={
+                "title": "Domain-Driven Design Distilled",
+                "author": "Vaughn Vernon",
+                "isbn": "ISBN-202",
+                "description": "A shorter DDD guide.",
+                "availability": True,
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": 2,
+            "title": "Domain-Driven Design Distilled",
+            "author": "Vaughn Vernon",
+            "isbn": "ISBN-202",
+            "description": "A shorter DDD guide.",
+            "availability": True,
+        }
+
+
+def test_update_book_missing_id_returns_404() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.put(
+            "/api/books/999",
+            json={
+                "title": "Unknown",
+                "author": "Unknown",
+                "isbn": "ISBN-999",
+                "description": "Unknown",
+                "availability": True,
+            },
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Book not found"}
+
+
+def test_update_book_missing_required_field_returns_422() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.put(
+            "/api/books/2",
+            json={
+                "title": "  ",
+                "author": "Valid Author",
+                "isbn": "ISBN-777",
+                "description": "Valid description",
+                "availability": True,
+            },
+        )
+
+        assert response.status_code == 422
+
+
+def test_update_book_duplicate_isbn_case_insensitive_returns_409() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        response = client.put(
+            "/api/books/2",
+            json={
+                "title": "Domain-Driven Design",
+                "author": "Eric Evans",
+                "isbn": "isbn-001",
+                "description": "A guide to complex software design.",
+                "availability": False,
+            },
+        )
+
+        assert response.status_code == 409
+        assert response.json() == {"detail": "ISBN already exists"}
+
+
+def test_update_book_preserves_other_books() -> None:
+    with build_client() as client:
+        seed_books(client)
+
+        update_response = client.put(
+            "/api/books/2",
+            json={
+                "title": "Domain-Driven Design Distilled",
+                "author": "Vaughn Vernon",
+                "isbn": "ISBN-202",
+                "description": "A shorter DDD guide.",
+                "availability": True,
+            },
+        )
+        assert update_response.status_code == 200
+
+        books_response = client.get("/api/books")
+        assert books_response.status_code == 200
+        assert books_response.json() == [
+            {
+                "id": 1,
+                "title": "Clean Code",
+                "author": "Robert C. Martin",
+                "isbn": "ISBN-001",
+                "description": "Software craftsmanship guide.",
+                "availability": True,
+            },
+            {
+                "id": 2,
+                "title": "Domain-Driven Design Distilled",
+                "author": "Vaughn Vernon",
+                "isbn": "ISBN-202",
+                "description": "A shorter DDD guide.",
                 "availability": True,
             },
             {

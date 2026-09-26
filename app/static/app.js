@@ -14,6 +14,18 @@ const agentAnswerElement = document.getElementById("agent-answer");
 const agentResultsElement = document.getElementById("agent-results");
 const bookList = document.getElementById("book-list");
 const detailsDialog = document.getElementById("book-details-dialog");
+const editDialog = document.getElementById("edit-book-dialog");
+const editForm = document.getElementById("edit-book-form");
+const editStatusElement = document.getElementById("edit-status");
+const editSaveButton = document.getElementById("edit-save-button");
+const editFields = {
+  id: document.getElementById("edit-book-id"),
+  title: document.getElementById("edit-title"),
+  author: document.getElementById("edit-author"),
+  isbn: document.getElementById("edit-isbn"),
+  description: document.getElementById("edit-description"),
+  availability: document.getElementById("edit-availability"),
+};
 const summarizeButton = document.getElementById("summarize-button");
 const summaryStatusElement = document.getElementById("summary-status");
 const summaryTextElement = document.getElementById("summary-text");
@@ -35,6 +47,11 @@ function setStatus(message, stateClass) {
 function setSearchStatus(message, stateClass) {
   searchStatusElement.textContent = message;
   searchStatusElement.className = stateClass;
+}
+
+function setEditStatus(message, stateClass) {
+  editStatusElement.textContent = message;
+  editStatusElement.className = stateClass;
 }
 
 function setAgentStatus(message, stateClass) {
@@ -110,7 +127,13 @@ function renderBooks(books) {
     deleteButton.dataset.bookTitle = book.title;
     deleteButton.textContent = "Delete book";
 
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.dataset.editBookId = String(book.id);
+    editButton.textContent = "Edit book";
+
     actions.appendChild(detailsButton);
+    actions.appendChild(editButton);
     actions.appendChild(deleteButton);
     item.appendChild(title);
     item.appendChild(author);
@@ -190,6 +213,40 @@ async function summarizeSelectedBook() {
     setSummaryStatus("Could not summarize this book. Please try again.", "duplicate");
   } finally {
     summarizeButton.disabled = false;
+  }
+}
+
+function populateEditForm(book) {
+  editFields.id.value = String(book.id);
+  editFields.title.value = book.title;
+  editFields.author.value = book.author;
+  editFields.isbn.value = book.isbn;
+  editFields.description.value = book.description;
+  editFields.availability.checked = book.availability;
+}
+
+async function openEditBookForm(bookId) {
+  editFields.id.value = String(bookId);
+  editFields.title.value = "";
+  editFields.author.value = "";
+  editFields.isbn.value = "";
+  editFields.description.value = "";
+  editFields.availability.checked = false;
+  setEditStatus("Loading book...", "working");
+  editSaveButton.disabled = true;
+  editDialog.showModal();
+  try {
+    const response = await fetch(`/api/books/${bookId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch book for edit");
+    }
+
+    const book = await response.json();
+    populateEditForm(book);
+    setEditStatus("", "");
+    editSaveButton.disabled = false;
+  } catch (error) {
+    setEditStatus("Could not load the selected book for editing.", "error");
   }
 }
 
@@ -371,7 +428,64 @@ agentForm.addEventListener("submit", async (event) => {
   await askCatalogueAgent(agentQuestionInput.value);
 });
 
+editForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const bookId = editFields.id.value;
+  const payload = {
+    title: editFields.title.value,
+    author: editFields.author.value,
+    isbn: editFields.isbn.value,
+    description: editFields.description.value,
+    availability: editFields.availability.checked,
+  };
+
+  setEditStatus("Working...", "working");
+  editSaveButton.disabled = true;
+
+  try {
+    const response = await fetch(`/api/books/${bookId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 200) {
+      editDialog.close();
+      await refreshBooks(searchInput.value, { successMessage: "Book updated successfully." });
+      return;
+    }
+
+    if (response.status === 422) {
+      setEditStatus("Validation failed. Check all required fields.", "validation");
+      return;
+    }
+
+    if (response.status === 409) {
+      setEditStatus("Duplicate ISBN. Please use a unique ISBN.", "duplicate");
+      return;
+    }
+
+    if (response.status === 404) {
+      setEditStatus("Could not update book because it was not found.", "error");
+      return;
+    }
+
+    setEditStatus("Unexpected error while updating book.", "error");
+  } catch (error) {
+    setEditStatus("Network error while updating book.", "error");
+  } finally {
+    editSaveButton.disabled = false;
+  }
+});
+
 bookList.addEventListener("click", async (event) => {
+  const editButton = event.target.closest("[data-edit-book-id]");
+  if (editButton) {
+    await openEditBookForm(editButton.dataset.editBookId);
+    return;
+  }
+
   const deleteButton = event.target.closest("[data-delete-book-id]");
   if (deleteButton) {
     await deleteBook(deleteButton.dataset.deleteBookId, deleteButton.dataset.bookTitle);

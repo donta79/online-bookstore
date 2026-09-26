@@ -45,6 +45,26 @@ def delete_book(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.put("/{book_id}", response_model=Book)
+def update_book(
+    book_id: int,
+    payload: BookCreate,
+    service: CatalogueService = Depends(get_catalogue_service),
+) -> Book:
+    try:
+        updated = service.update_book(book_id, payload)
+    except DuplicateIsbnError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ISBN already exists",
+        ) from exc
+
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    return updated
+
+
 @router.post("", response_model=Book, status_code=status.HTTP_201_CREATED)
 def create_book(
     payload: BookCreate,
@@ -55,5 +75,5 @@ def create_book(
     except DuplicateIsbnError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"ISBN already exists: {exc}",
+            detail="ISBN already exists",
         ) from exc

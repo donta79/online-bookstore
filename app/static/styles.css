@@ -39,6 +39,11 @@ button {
   min-height: 1.5rem;
 }
 
+#edit-status {
+  min-height: 1.5rem;
+  margin: 0;
+}
+
 #agent-status,
 #agent-answer {
   min-height: 1.5rem;
@@ -89,6 +94,10 @@ button {
 }
 
 .duplicate {
+  color: #8a1f1f;
+}
+
+.error {
   color: #8a1f1f;
 }
 
