@@ -13,7 +13,7 @@ _catalogue_service = CatalogueService(_repository)
 def get_catalogue_service() -> CatalogueService:
     return _catalogue_service
 
-
+# API Endpoints
 @router.get("", response_model=list[Book])
 def list_books(
     q: str | None = None,
