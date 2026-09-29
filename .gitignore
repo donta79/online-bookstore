@@ -2,6 +2,7 @@
 __pycache__/
 .pytest_cache/
 .env
+data/
 *.pyc
 .DS_Store
 Thumbs.db
