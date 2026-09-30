@@ -45,7 +45,10 @@ button {
 }
 
 #agent-status,
-#agent-answer {
+#agent-answer,
+#pdf-upload-status,
+#pdf-question-status,
+#pdf-answer {
   min-height: 1.5rem;
   margin: 0;
 }
@@ -110,6 +113,13 @@ button {
   padding: 0;
   display: grid;
   gap: 0.75rem;
+}
+
+.pdf-sources {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
 }
 
 .book-card {
