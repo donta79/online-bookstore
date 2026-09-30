@@ -79,6 +79,32 @@
       </section>
 
       <section>
+        <h2>Ask a PDF document</h2>
+        <form id="pdf-upload-form">
+          <label>
+            PDF document
+            <input id="pdf-file" name="file" type="file" accept="application/pdf,.pdf" required />
+          </label>
+          <button id="pdf-upload-button" type="submit">Upload and index PDF</button>
+        </form>
+        <p id="pdf-document-status" aria-live="polite">No document has been uploaded.</p>
+        <p id="pdf-upload-status" aria-live="polite"></p>
+        <form id="pdf-question-form">
+          <label>
+            Question about the active document
+            <input id="pdf-question" name="pdf-question" required />
+          </label>
+          <button id="ask-pdf-button" type="submit">Ask document</button>
+        </form>
+        <p id="pdf-question-status" aria-live="polite"></p>
+        <p id="pdf-answer"></p>
+        <section>
+          <h3>Sources</h3>
+          <ul id="pdf-sources" class="pdf-sources"></ul>
+        </section>
+      </section>
+
+      <section>
         <h2>Books</h2>
         <ul id="book-list" class="book-cards"></ul>
       </section>

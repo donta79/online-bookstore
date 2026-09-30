@@ -12,6 +12,17 @@ const agentProgress = document.getElementById("agent-progress");
 const agentStatusElement = document.getElementById("agent-status");
 const agentAnswerElement = document.getElementById("agent-answer");
 const agentResultsElement = document.getElementById("agent-results");
+const pdfUploadForm = document.getElementById("pdf-upload-form");
+const pdfFileInput = document.getElementById("pdf-file");
+const pdfUploadButton = document.getElementById("pdf-upload-button");
+const pdfDocumentStatusElement = document.getElementById("pdf-document-status");
+const pdfUploadStatusElement = document.getElementById("pdf-upload-status");
+const pdfQuestionForm = document.getElementById("pdf-question-form");
+const pdfQuestionInput = document.getElementById("pdf-question");
+const askPdfButton = document.getElementById("ask-pdf-button");
+const pdfQuestionStatusElement = document.getElementById("pdf-question-status");
+const pdfAnswerElement = document.getElementById("pdf-answer");
+const pdfSourcesElement = document.getElementById("pdf-sources");
 const bookList = document.getElementById("book-list");
 const detailsDialog = document.getElementById("book-details-dialog");
 const editDialog = document.getElementById("edit-book-dialog");
@@ -61,6 +72,25 @@ function setAgentStatus(message, stateClass) {
 
 function setAgentProgress(visible) {
   agentProgress.classList.toggle("visible", visible);
+}
+
+function setPdfUploadStatus(message, stateClass) {
+  pdfUploadStatusElement.textContent = message;
+  pdfUploadStatusElement.className = stateClass;
+}
+
+function setPdfQuestionStatus(message, stateClass) {
+  pdfQuestionStatusElement.textContent = message;
+  pdfQuestionStatusElement.className = stateClass;
+}
+
+function renderPdfSources(sources) {
+  pdfSourcesElement.innerHTML = "";
+  for (const source of sources) {
+    const item = document.createElement("li");
+    item.textContent = `Page ${source.page_number}: ${source.excerpt}`;
+    pdfSourcesElement.appendChild(item);
+  }
 }
 
 function renderAgentResults(results) {
@@ -371,6 +401,93 @@ async function askCatalogueAgent(question) {
   }
 }
 
+async function uploadPdfDocument() {
+  const file = pdfFileInput.files[0];
+  if (!file) {
+    setPdfUploadStatus("Choose a PDF file to upload.", "validation");
+    return;
+  }
+
+  setPdfUploadStatus("Uploading and indexing document...", "working");
+  pdfUploadButton.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch("/api/ai/pdf-rag/documents", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response.status === 201) {
+      const document = await response.json();
+      pdfDocumentStatusElement.textContent =
+        `Active document: ${document.document_name} (${document.page_count} page(s)).`;
+      setPdfUploadStatus(`Indexed ${document.chunk_count} excerpt(s).`, "success");
+      return;
+    }
+
+    if (response.status === 422) {
+      setPdfUploadStatus("Upload validation failed. Choose a readable PDF file.", "validation");
+      return;
+    }
+
+    setPdfUploadStatus("Could not upload and index the document.", "error");
+  } catch (error) {
+    setPdfUploadStatus("Could not upload and index the document.", "error");
+  } finally {
+    pdfUploadButton.disabled = false;
+  }
+}
+
+async function askPdfQuestion(question) {
+  setPdfQuestionStatus("Searching the active document...", "working");
+  pdfAnswerElement.textContent = "";
+  renderPdfSources([]);
+  askPdfButton.disabled = true;
+
+  try {
+    const response = await fetch("/api/ai/pdf-rag/questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+
+    if (response.ok) {
+      const body = await response.json();
+      pdfAnswerElement.textContent = body.answer;
+      renderPdfSources(body.sources);
+      setPdfQuestionStatus(
+        body.insufficient_context ? "The document does not support that answer." : "Answer ready.",
+        body.insufficient_context ? "validation" : "success",
+      );
+      return;
+    }
+
+    if (response.status === 404) {
+      pdfDocumentStatusElement.textContent = "No document has been uploaded.";
+      setPdfQuestionStatus("Upload a PDF before asking a question.", "validation");
+      return;
+    }
+
+    if (response.status === 422) {
+      setPdfQuestionStatus("Enter a question about the active document.", "validation");
+      return;
+    }
+
+    if (response.status === 503) {
+      setPdfQuestionStatus("Document answers are unavailable right now. Please try again later.", "error");
+      return;
+    }
+
+    setPdfQuestionStatus("Could not answer the document question.", "error");
+  } catch (error) {
+    setPdfQuestionStatus("Could not answer the document question.", "error");
+  } finally {
+    askPdfButton.disabled = false;
+  }
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -426,6 +543,16 @@ searchForm.addEventListener("submit", async (event) => {
 agentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await askCatalogueAgent(agentQuestionInput.value);
+});
+
+pdfUploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await uploadPdfDocument();
+});
+
+pdfQuestionForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await askPdfQuestion(pdfQuestionInput.value);
 });
 
 editForm.addEventListener("submit", async (event) => {

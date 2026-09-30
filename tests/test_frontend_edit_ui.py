@@ -41,3 +41,20 @@ def test_edit_load_flow_prefills_book_and_uses_dialog_status_for_errors() -> Non
     assert "populateEditForm(book);" in open_edit_function
     assert "setEditStatus(\"Could not load the selected book for editing.\", \"error\")" in open_edit_function
     assert "setSearchStatus(" not in open_edit_function
+
+
+def test_pdf_rag_controls_expose_document_and_question_states() -> None:
+    html = _read_static_file("index.html")
+    javascript = _read_static_file("app.js")
+
+    assert 'id="pdf-upload-form"' in html
+    assert 'id="pdf-file"' in html
+    assert 'id="pdf-question-form"' in html
+    assert 'id="pdf-document-status"' in html
+    assert 'id="pdf-sources"' in html
+    assert 'fetch("/api/ai/pdf-rag/documents"' in javascript
+    assert 'fetch("/api/ai/pdf-rag/questions"' in javascript
+    assert 'setPdfUploadStatus("Uploading and indexing document...", "working")' in javascript
+    assert 'setPdfUploadStatus("Upload validation failed. Choose a readable PDF file.", "validation")' in javascript
+    assert 'setPdfQuestionStatus("Upload a PDF before asking a question.", "validation")' in javascript
+    assert 'setPdfQuestionStatus("Document answers are unavailable right now. Please try again later.", "error")' in javascript
