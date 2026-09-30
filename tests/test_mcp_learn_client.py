@@ -8,8 +8,8 @@ from app.ai.mcp_client import (
 )
 
 
-def test_lookup_docs_raises_when_endpoint_not_configured(monkeypatch) -> None:
-    monkeypatch.delenv("MCP_LEARN_ENDPOINT", raising=False)
+def test_lookup_docs_raises_when_endpoint_disabled(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_LEARN_ENDPOINT", "")
     client = MicrosoftLearnMCPClient()
 
     try:
@@ -17,6 +17,13 @@ def test_lookup_docs_raises_when_endpoint_not_configured(monkeypatch) -> None:
         assert False, "expected DocsLookupUnavailableError"
     except DocsLookupUnavailableError:
         pass
+
+
+def test_default_endpoint_is_used_when_unset(monkeypatch) -> None:
+    monkeypatch.delenv("MCP_LEARN_ENDPOINT", raising=False)
+    client = MicrosoftLearnMCPClient()
+
+    assert client._endpoint == "https://learn.microsoft.com/api/mcp"
 
 
 def test_lookup_docs_wraps_connection_failures(monkeypatch) -> None:

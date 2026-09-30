@@ -17,11 +17,17 @@ class DocsLookupUnavailableError(Exception):
     """Raised when the Microsoft Learn MCP server cannot be used."""
 
 
+DEFAULT_MCP_LEARN_ENDPOINT = "https://learn.microsoft.com/api/mcp"
+
+
 class MicrosoftLearnMCPClient:
     """Discovers and calls tools on the Microsoft Learn Streamable HTTP MCP server."""
 
     def __init__(self) -> None:
-        self._endpoint = os.getenv("MCP_LEARN_ENDPOINT", "").strip()
+        # Set MCP_LEARN_ENDPOINT to an empty string to disable documentation
+        # lookups; any other value (including unset) uses the public
+        # Microsoft Learn MCP server by default.
+        self._endpoint = os.getenv("MCP_LEARN_ENDPOINT", DEFAULT_MCP_LEARN_ENDPOINT).strip()
 
     def lookup_docs(self, query: str) -> str:
         """Look up Microsoft Learn documentation for a technical query.
